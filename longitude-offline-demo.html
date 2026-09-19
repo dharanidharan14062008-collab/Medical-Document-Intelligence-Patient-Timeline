@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Longitude — Medical Document Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7F6;
+    --paper:#FFFFFF;
+    --ink:#142B25;
+    --line:#DBE4E0;
+    --accent:#2E6F5E;
+    --accent-dark:#1D473C;
+    --accent-soft:#E4EFEB;
+    --warn:#B8803A;
+    --warn-soft:#F6ECDD;
+    --danger:#9B3B3B;
+    --danger-soft:#F5E4E2;
+    --muted:#5C6D68;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;line-height:1.5;}
+  h1,h2,h3{font-family:'Source Serif 4',serif;margin:0;font-weight:600;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  ::selection{background:var(--accent-soft);}
+
+  /* ---------- Auth screen ---------- */
+  #auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .auth-card{width:100%;max-width:420px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:36px 32px;}
+  .brand{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
+  .brand h1{font-size:26px;color:var(--accent-dark);}
+  .brand span{color:var(--muted);font-size:13px;}
+  .tagline{color:var(--muted);font-size:14px;margin-bottom:28px;}
+  .role-toggle{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+  .role-toggle button{flex:1;padding:10px;background:var(--paper);border:none;font-size:13px;color:var(--muted);border-right:1px solid var(--line);}
+  .role-toggle button:last-child{border-right:none;}
+  .role-toggle button.active{background:var(--accent-dark);color:#fff;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .field input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-size:14px;background:#fbfcfb;}
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .primary-btn{width:100%;padding:11px;background:var(--accent-dark);color:#fff;border:none;border-radius:3px;font-size:14px;margin-top:6px;}
+  .primary-btn:hover{background:var(--accent);}
+  .demo-note{margin-top:18px;font-size:12px;color:var(--muted);background:var(--accent-soft);border-radius:3px;padding:10px 12px;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;min-height:100vh;grid-template-columns:220px 1fr;}
+  #app.live{display:grid;}
+  .rail{background:var(--ink);color:#DDE7E3;padding:24px 18px;display:flex;flex-direction:column;}
+  .rail .brand2{font-family:'Source Serif 4',serif;font-size:19px;color:#fff;margin-bottom:2px;}
+  .rail .who{font-size:12px;color:#9FB3AC;margin-bottom:26px;}
+  .rail nav button{display:block;width:100%;text-align:left;background:none;border:none;color:#C7D6D1;padding:9px 8px;font-size:13px;border-radius:3px;margin-bottom:2px;}
+  .rail nav button.active{background:rgba(255,255,255,0.08);color:#fff;}
+  .rail .signout{margin-top:auto;background:none;border:1px solid rgba(255,255,255,0.2);color:#C7D6D1;padding:8px;border-radius:3px;font-size:12px;}
+  main{padding:28px 34px 60px;max-width:1180px;}
+  .top-banner{background:var(--warn-soft);border:1px solid #E4CB9F;color:#6B4A17;font-size:12.5px;padding:9px 14px;border-radius:3px;margin-bottom:22px;}
+  .page-head{margin-bottom:22px;}
+  .page-head h2{font-size:24px;}
+  .page-head p{color:var(--muted);font-size:13.5px;margin-top:4px;}
+
+  /* ---------- Upload ---------- */
+  .dropzone{border:1.5px dashed #B7C7C1;border-radius:5px;padding:26px;text-align:center;background:var(--paper);cursor:pointer;margin-bottom:20px;}
+  .dropzone:hover{border-color:var(--accent);}
+  .dropzone strong{display:block;font-size:14px;margin-bottom:3px;}
+  .dropzone span{font-size:12px;color:var(--muted);}
+  .queue{margin-bottom:26px;}
+  .queue-item{display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-bottom:6px;font-size:13px;}
+  .queue-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .status-pill{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+  .status-pill.working{background:var(--accent-soft);color:var(--accent-dark);}
+  .status-pill.done{background:#DFF0E8;color:#1D5C3F;}
+  .status-pill.error{background:var(--danger-soft);color:var(--danger);}
+
+  /* ---------- Layout: timeline + summary ---------- */
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:28px;align-items:start;}
+  @media (max-width:900px){.layout{grid-template-columns:1fr;} #app.live{grid-template-columns:1fr;} .rail{display:none;}}
+
+  .sort-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .sort-row select{padding:6px 8px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;background:#fff;}
+  .timeline{position:relative;padding-left:26px;}
+  .timeline::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:1px;background:var(--line);}
+  .event{position:relative;margin-bottom:16px;}
+  .event::before{content:"";position:absolute;left:-24px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);}
+  .event-card{background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;}
+  .event-top{display:flex;justify-content:space-between;gap:10px;margin-bottom:4px;}
+  .event-date{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .badge{font-size:10.5px;padding:2px 7px;border-radius:9px;background:var(--accent-soft);color:var(--accent-dark);white-space:nowrap;height:fit-content;}
+  .event-title{font-size:15px;font-weight:600;margin-bottom:3px;}
+  .event-summary{font-size:13px;color:#3A4A45;margin-bottom:8px;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .chip{font-size:11px;padding:3px 8px;border-radius:3px;background:#F0F3F2;border:1px solid var(--line);}
+  .chip.flag-high,.chip.flag-critical{background:var(--danger-soft);border-color:#E3C4C0;color:var(--danger);}
+  .chip.flag-low{background:var(--warn-soft);border-color:#E4CB9F;color:#6B4A17;}
+  .event-foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;margin-top:4px;}
+  .link-btn{background:none;border:none;color:var(--accent-dark);font-size:12px;text-decoration:underline;padding:0;}
+  .empty{color:var(--muted);font-size:13.5px;padding:20px 0;}
+
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:16px;}
+  .panel h3{font-size:14px;margin-bottom:10px;}
+  .panel ul{margin:0;padding-left:18px;font-size:13px;}
+  .panel li{margin-bottom:5px;}
+  .consent-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;}
+  .switch{position:relative;width:38px;height:20px;background:#C9D5D0;border-radius:10px;border:none;flex-shrink:0;}
+  .switch.on{background:var(--accent);}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.15s;}
+  .switch.on::after{left:20px;}
+
+  .audit-item{font-size:12px;color:var(--muted);border-bottom:1px dashed var(--line);padding:6px 0;}
+  .audit-item:last-child{border-bottom:none;}
+
+  /* ---------- Doctor search ---------- */
+  .search-row{display:flex;gap:8px;margin-bottom:22px;max-width:420px;}
+  .search-row input{flex:1;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-size:14px;}
+  .search-row button{padding:9px 16px;background:var(--accent-dark);color:#fff;border:none;border-radius:3px;font-size:13px;}
+  .denied{background:var(--danger-soft);border:1px solid #E3C4C0;color:var(--danger);padding:14px 16px;border-radius:4px;font-size:13.5px;}
+
+  /* ---------- Modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(10,20,17,0.55);display:none;align-items:center;justify-content:center;padding:24px;z-index:50;}
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:5px;max-width:640px;width:100%;max-height:85vh;overflow:auto;padding:22px 24px;}
+  .modal h3{font-size:16px;margin-bottom:10px;}
+  .modal .close{float:right;background:none;border:none;font-size:18px;color:var(--muted);}
+  .modal img,.modal iframe{width:100%;border:1px solid var(--line);border-radius:3px;margin-top:10px;}
+  .modal pre{white-space:pre-wrap;font-size:12.5px;background:#F7F9F8;padding:12px;border-radius:3px;border:1px solid var(--line);}
+  .field-note{font-size:11.5px;color:var(--muted);margin-top:10px;}
+
+  /* ---------- Offline demo mode ---------- */
+  .offline-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent-dark);font-family:'IBM Plex Mono',monospace;letter-spacing:.2px;}
+  .offline-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;}
+  .rail .offline-badge{background:rgba(255,255,255,0.08);color:#BFE3D4;margin-bottom:18px;}
+
+  /* ---------- Staged files / analyze ---------- */
+  .staged-item{background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:12px 14px;margin-bottom:8px;}
+  .staged-item .row1{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .staged-item .fname{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .staged-item .fmeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .staged-item .remove{background:none;border:none;color:var(--danger);font-size:12px;text-decoration:underline;padding:0;}
+
+  .proc-item{background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:12px 14px;margin-bottom:8px;}
+  .proc-item .prow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+  .proc-item .fname{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .proc-item .fmeta{font-size:11px;color:var(--muted);}
+  .proc-bar-track{height:5px;background:#E7EEEC;border-radius:3px;overflow:hidden;margin-bottom:8px;}
+  .proc-bar-fill{height:100%;width:0%;background:var(--accent);transition:width .35s ease;}
+  .proc-stage{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .proc-stage strong{color:var(--accent-dark);}
+
+  .result-grid{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13px;}
+  .result-grid li strong{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;font-weight:600;}
+  @media (max-width:520px){.result-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="brand"><h1>Longitude</h1><span>medical document intelligence</span></div>
+    <div class="offline-badge" style="margin-bottom:12px">Offline Prototype / Demo Mode</div>
+    <div class="tagline">Turn scattered reports into one traceable patient timeline.</div>
+    <div class="role-toggle">
+      <button id="roleBtnPatient" class="active" onclick="setRole('patient')">I'm a patient</button>
+      <button id="roleBtnDoctor" onclick="setRole('doctor')">I'm a clinician</button>
+    </div>
+    <div class="field"><label id="idLabel">Patient ID (make one up, e.g. P-1001)</label><input id="loginId" placeholder="P-1001"></div>
+    <div class="field"><label>Name</label><input id="loginName" placeholder="Full name"></div>
+    <div class="field"><label>Passcode</label><input id="loginPass" type="password" placeholder="Anything — demo only"></div>
+    <button class="primary-btn" onclick="login()">Continue</button>
+    <div class="demo-note">Prototype auth for this demo — no real credential system behind it. A production build would sit behind proper OAuth/MFA, per-record encryption and a signed BAA before touching real patient data. Document analysis in this build runs entirely offline in your browser with simulated results — no API key, backend, or internet connection required.</div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div class="rail">
+    <div class="brand2">Longitude</div>
+    <div class="offline-badge">Offline Prototype / Demo Mode</div>
+    <div class="who" id="whoLine"></div>
+    <nav id="railNav"></nav>
+    <button class="signout" onclick="signOut()">Sign out</button>
+  </div>
+
+  <main>
+    <div class="top-banner">⚠ Hackathon prototype running fully offline in your browser. No API key, backend, database, or internet connection is used — document analysis is simulated with local JavaScript. Don't upload real patient data.</div>
+
+    <!-- PATIENT: UPLOAD -->
+    <div id="view-upload" class="view">
+      <div class="page-head"><h2>Upload a document</h2><p>Lab reports, prescriptions, discharge summaries, imaging reports, clinical notes, or bills — PDF, Word, text, or image. Processed fully offline — nothing leaves your browser.</p></div>
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault(); this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor=''" ondrop="handleDrop(event)">
+        <strong>Click to choose a file, or drag one in</strong>
+        <span>.pdf .doc .docx .txt .jpg .png — any file is accepted for this demo</span>
+      </div>
+      <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt,image/*,.jpg,.jpeg,.png,.webp" style="display:none" onchange="stageFiles(this.files); this.value='';">
+
+      <div id="staged"></div>
+      <button class="primary-btn" id="analyzeBtn" style="width:auto;display:none;margin-bottom:22px" onclick="analyzeStagedFiles()">Analyze Document</button>
+
+      <div class="queue" id="queue"></div>
+
+      <div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div>
+          <strong style="font-size:13.5px">Want the full 7-document walkthrough instead?</strong>
+          <div class="field-note" style="margin-top:2px">Load 7 pre-built sample documents (clinical note → prescription → labs → imaging → discharge → follow-up → referral) to see the full timeline instantly.</div>
+        </div>
+        <button class="primary-btn" style="width:auto;white-space:nowrap;margin-top:0" onclick="loadDemoDocuments()">Load demo documents</button>
+      </div>
+    </div>
+
+    <!-- PATIENT: TIMELINE -->
+    <div id="view-timeline" class="view" style="display:none">
+      <div class="page-head"><h2>Your timeline</h2><p>Reconstructed automatically from everything you've uploaded. Every entry links back to its source document.</p></div>
+      <div class="layout">
+        <div>
+          <div class="sort-row">
+            <span class="mono" id="eventCount" style="font-size:12px;color:var(--muted)"></span>
+            <select id="sortOrder" onchange="renderPatientTimeline()"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
+          </div>
+          <div class="timeline" id="timelineList"></div>
+        </div>
+        <div>
+          <div class="panel">
+            <h3>Active medications</h3>
+            <ul id="medList"><li class="empty" style="padding:0">None recorded yet</li></ul>
+          </div>
+          <div class="panel">
+            <h3>Diagnoses on record</h3>
+            <ul id="diagList"><li class="empty" style="padding:0">None recorded yet</li></ul>
+          </div>
+          <div class="panel">
+            <h3>Flagged lab values</h3>
+            <ul id="flagList"><li class="empty" style="padding:0">None recorded yet</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENT: SHARING & PROTECTION -->
+    <div id="view-sharing" class="view" style="display:none">
+      <div class="page-head"><h2>Sharing &amp; protection</h2><p>You control whether any clinician can see your timeline.</p></div>
+      <div class="panel">
+        <div class="consent-row">
+          <div><strong>Allow clinicians to look up my record</strong><div class="field-note" style="margin-top:2px">When off, doctors searching your Patient ID get a blocked-access message.</div></div>
+          <button class="switch" id="consentSwitch" onclick="toggleConsent()"></button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Access log</h3>
+        <div id="auditLog"><div class="empty" style="padding:0">No one has viewed your record yet.</div></div>
+      </div>
+      <div class="panel">
+        <h3>How this is protected</h3>
+        <ul>
+          <li>Your record lives under your Patient ID only — a clinician must know that ID and have your consent switched on.</li>
+          <li>Every clinician view is timestamped and logged here, visible to you.</li>
+          <li>Clinicians get read-only access — they can never edit or delete your entries.</li>
+          <li>In production: encryption at rest and in transit, scoped access tokens, audit-grade logging, and HIPAA/BAA-compliant hosting would replace this demo's simplified storage.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- DOCTOR: LOOKUP -->
+    <div id="view-lookup" class="view" style="display:none">
+      <div class="page-head"><h2>Look up a patient</h2><p>Read-only. Requires the patient's ID and their consent to be switched on.</p></div>
+      <div class="search-row">
+        <input id="searchPid" placeholder="Patient ID, e.g. P-1001">
+        <button onclick="doctorSearch()">View timeline</button>
+      </div>
+      <div id="doctorResult"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ================= SOURCE MODAL ================= -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <button class="close" onclick="closeModal()">✕</button>
+    <h3 id="modalTitle">Source document</h3>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ================= ANALYSIS RESULT MODAL ================= -->
+<div class="modal-bg" id="resultModalBg">
+  <div class="modal">
+    <button class="close" onclick="closeResultModal()">✕</button>
+    <h3>Analysis complete <span class="offline-badge" style="margin-left:6px;vertical-align:middle">Simulated · Offline</span></h3>
+    <div id="resultBody"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------- state ---------------- */
+let pendingRole = 'patient';
+let user = null; // {role, id, name}
+let events = [];       // current patient's structured events (patient view or doctor-viewed)
+let viewingPatientId = null;
+
+/* This build is a fully offline hackathon prototype: there is no AI API call
+   anywhere in this file. "Analyze Document" runs a simulated multi-stage
+   pipeline (below) and returns a predefined/mock structured result generated
+   locally in JavaScript, so the demo works with no key, backend, or network. */
+let stagedFiles = [];   // files chosen but not yet analyzed
+let lastSummary = null; // most recent mock patient summary shown in the result modal
+
+/* ---------------- auth ---------------- */
+function setRole(r){
+  pendingRole = r;
+  document.getElementById('roleBtnPatient').classList.toggle('active', r==='patient');
+  document.getElementById('roleBtnDoctor').classList.toggle('active', r==='doctor');
+  document.getElementById('idLabel').textContent = r==='patient' ? 'Patient ID (make one up, e.g. P-1001)' : 'Your clinician ID (e.g. DR-204)';
+}
+
+async function login(){
+  const id = document.getElementById('loginId').value.trim();
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!id || !name || !pass){ alert('Fill in all three fields — the passcode can be anything for this demo.'); return; }
+  user = {role: pendingRole, id, name};
+  document.getElementById('auth').style.display='none';
+  document.getElementById('app').classList.add('live');
+  document.getElementById('whoLine').textContent = (user.role==='patient'?'Patient · ':'Clinician · ') + user.name;
+  buildNav();
+  if(user.role==='patient'){
+    events = await loadEvents(user.id);
+    await refreshConsentUI();
+    await refreshAuditUI();
+    showView('upload');
+  } else {
+    showView('lookup');
+  }
+}
+
+function signOut(){
+  user = null; events = []; viewingPatientId = null;
+  document.getElementById('app').classList.remove('live');
+  document.getElementById('auth').style.display='flex';
+  document.getElementById('loginId').value='';
+  document.getElementById('loginName').value='';
+  document.getElementById('loginPass').value='';
+}
+
+function buildNav(){
+  const nav = document.getElementById('railNav');
+  if(user.role==='patient'){
+    nav.innerHTML = `
+      <button onclick="showView('upload')" id="nav-upload">Upload</button>
+      <button onclick="showView('timeline')" id="nav-timeline">Timeline</button>
+      <button onclick="showView('sharing')" id="nav-sharing">Sharing &amp; protection</button>`;
+  } else {
+    nav.innerHTML = `<button onclick="showView('lookup')" id="nav-lookup">Look up patient</button>`;
+  }
+}
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+  document.getElementById('view-'+name).style.display='block';
+  document.querySelectorAll('.rail nav button').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('nav-'+name);
+  if(btn) btn.classList.add('active');
+  if(name==='timeline') renderPatientTimeline();
+}
+
+/* ---------------- storage helpers ----------------
+   This build runs as a standalone file in a normal browser, so it uses
+   localStorage rather than the Claude.ai-artifact-only window.storage API.
+   For a real deployment, this whole layer would be swapped for a proper
+   backend + encrypted database — see the Sharing & protection panel. */
+async function loadEvents(pid){
+  try{ const v = localStorage.getItem(`patient:${pid}:events`); return v ? JSON.parse(v) : []; }
+  catch(e){ return []; }
+}
+async function saveEvents(pid, evts){
+  try{ localStorage.setItem(`patient:${pid}:events`, JSON.stringify(evts)); }
+  catch(e){ console.error('save failed', e); }
+}
+async function loadConsent(pid){
+  try{ return localStorage.getItem(`patient:${pid}:consent`) === 'true'; }
+  catch(e){ return false; }
+}
+async function saveConsent(pid, val){
+  try{ localStorage.setItem(`patient:${pid}:consent`, val ? 'true':'false'); }catch(e){}
+}
+async function loadAudit(pid){
+  try{ const v = localStorage.getItem(`patient:${pid}:audit`); return v ? JSON.parse(v) : []; }
+  catch(e){ return []; }
+}
+async function appendAudit(pid, entry){
+  const log = await loadAudit(pid);
+  log.unshift(entry);
+  try{ localStorage.setItem(`patient:${pid}:audit`, JSON.stringify(log)); }catch(e){}
+}
+
+/* ---------------- demo mode (no API key needed) ----------------
+   Pre-extracted results for the 7 synthetic sample documents, so the
+   whole pipeline — structuring, chronological ordering, timeline,
+   traceability — can be demoed live without an Anthropic API key. */
+const DEMO_DOCS = [
+  { sourceFileName:'01_patient_visit.txt', docType:'Clinical Note', eventDate:'2026-01-05', provider:'Dr. Meera Sharma',
+    title:'Initial visit — fever and cough', summary:'Presented with fever, dry cough and tiredness for 3 days; assessed as a possible respiratory infection, with symptomatic treatment advised.',
+    diagnoses:['Possible respiratory infection'], medications:[], labResults:[], followUp:'Laboratory testing advised if symptoms continue', confidence:'high',
+    sourceText:'MEDICAL CLINICAL NOTE\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nDate of Visit: 05/01/2026\nDepartment: General Medicine\n\nChief Complaint:\nFever and cough for 3 days.\n\nClinical Notes:\nPatient reports mild fever, dry cough and tiredness. No breathing difficulty reported.\n\nAssessment:\nPossible respiratory infection.\n\nPlan:\nClinical monitoring and symptomatic treatment. Laboratory testing advised if symptoms continue.\n\nDoctor: Dr. Meera Sharma' },
+
+  { sourceFileName:'02_prescription.txt', docType:'Prescription', eventDate:'2026-01-08', provider:'Dr. Meera Sharma',
+    title:'Prescription — Paracetamol & Azithromycin', summary:'Prescribed for a respiratory infection with fever and cough; advised fluids and a follow-up if symptoms persist.',
+    diagnoses:['Respiratory infection with fever and cough'],
+    medications:[{name:'Paracetamol', dosage:'500 mg', frequency:'Twice daily after food for 3 days'}, {name:'Azithromycin', dosage:'500 mg', frequency:'Once daily for 3 days'}],
+    labResults:[], followUp:'Return for follow-up if symptoms persist', confidence:'high',
+    sourceText:'PRESCRIPTION\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nPrescription Date: 08/01/2026\n\nDiagnosis:\nRespiratory infection with fever and cough.\n\nMedications:\n1. Paracetamol 500 mg - twice daily after food for 3 days.\n2. Azithromycin 500 mg - once daily for 3 days.\n\nAdvice:\nDrink adequate fluids and return for follow-up if symptoms persist.\n\nDoctor: Dr. Meera Sharma' },
+
+  { sourceFileName:'03_laboratory_report.txt', docType:'Lab Report', eventDate:'2026-01-15', provider:'Demo Diagnostics Centre',
+    title:'Blood work & metabolic panel', summary:'Routine lab panel run during the respiratory infection workup; all values within normal reference ranges.',
+    diagnoses:[], medications:[],
+    labResults:[
+      {name:'Hemoglobin', value:'13.2', unit:'g/dL', flag:'normal'},
+      {name:'WBC Count', value:'8500', unit:'/uL', flag:'normal'},
+      {name:'Fasting Glucose', value:'105', unit:'mg/dL', flag:'normal'},
+      {name:'Platelets', value:'245000', unit:'/uL', flag:'normal'},
+      {name:'CRP', value:'4.2', unit:'mg/L', flag:'normal'}
+    ], followUp:null, confidence:'high',
+    sourceText:'LABORATORY REPORT\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nReport Date: 15/01/2026\n\nTest Results:\nHemoglobin: 13.2 g/dL\nWBC Count: 8500 /uL\nFasting Glucose: 105 mg/dL\nPlatelets: 245000 /uL\nCRP: 4.2 mg/L\n\nLaboratory: Demo Diagnostics Centre' },
+
+  { sourceFileName:'04_imaging_report.txt', docType:'Imaging Report', eventDate:'2026-01-17', provider:'Dr. K. Ravi (Radiology)',
+    title:'Chest X-ray', summary:'Chest X-ray showed no focal consolidation, a normal cardiac silhouette, and no pleural effusion — no acute abnormality identified.',
+    diagnoses:[], medications:[], labResults:[], followUp:null, confidence:'high',
+    sourceText:'IMAGING REPORT\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nStudy Date: 17/01/2026\nExamination: Chest X-ray\n\nFindings:\nNo focal consolidation identified. Cardiac silhouette is within the expected size range.\nNo pleural effusion is seen.\n\nImpression:\nNo acute abnormality identified.\n\nRadiologist: Dr. K. Ravi' },
+
+  { sourceFileName:'05_discharge_summary.txt', docType:'Discharge Summary', eventDate:'2026-01-19', provider:'Dr. Meera Sharma',
+    title:'Hospital discharge — respiratory infection, improving', summary:'Admitted for fever and persistent cough; observed with supportive treatment, symptoms improved, discharged on as-needed paracetamol.',
+    diagnoses:['Respiratory infection, improving'],
+    medications:[{name:'Paracetamol', dosage:'500 mg', frequency:'As needed for fever'}],
+    labResults:[], followUp:'Review with General Medicine after 7 days if symptoms recur', confidence:'high',
+    sourceText:'DISCHARGE SUMMARY\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nAdmission Date: 18/01/2026\nDischarge Date: 19/01/2026\n\nReason for Admission:\nFever and persistent cough.\n\nHospital Course:\nPatient was observed and received supportive treatment. Symptoms improved during observation.\n\nDiagnosis at Discharge:\nRespiratory infection, improving.\n\nDischarge Medication:\nParacetamol 500 mg as needed for fever.\n\nFollow-up:\nReview with General Medicine after 7 days if symptoms recur.\n\nDoctor: Dr. Meera Sharma' },
+
+  { sourceFileName:'06_followup_note.txt', docType:'Clinical Note', eventDate:'2026-01-26', provider:'Dr. Meera Sharma',
+    title:'Follow-up — symptoms resolving', summary:'Fever resolved and cough significantly improved; continuing routine care with no additional medication required.',
+    diagnoses:['Respiratory infection, clinically improving'], medications:[], labResults:[], followUp:'Continue routine care', confidence:'high',
+    sourceText:'FOLLOW-UP CLINICAL NOTE\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nFollow-up Date: 26/01/2026\n\nProgress:\nPatient reports that fever has resolved and cough has significantly improved.\n\nAssessment:\nRespiratory infection clinically improving.\n\nPlan:\nContinue routine care. No additional medication required at this visit.\n\nDoctor: Dr. Meera Sharma' },
+
+  { sourceFileName:'07_referral_note.txt', docType:'Other', eventDate:'2026-02-02', provider:'Dr. Meera Sharma (referring)',
+    title:'Referral — intermittent cough evaluation', summary:'Referred for a pulmonary evaluation of intermittent cough following recovery from the earlier respiratory infection treated in January 2026.',
+    diagnoses:[], medications:[], labResults:[], followUp:'Pulmonary/Respiratory Medicine consultation if symptoms continue', confidence:'high',
+    sourceText:'REFERRAL NOTE\nDemo Patient ID: DEMO-001\nPatient Name: Arun Kumar\nReferral Date: 02/02/2026\n\nReason for Referral:\nEvaluation of intermittent cough reported after recovery from respiratory infection.\n\nRelevant History:\nPrevious episode of respiratory infection in January 2026, treated with medication and supportive care.\n\nRequested Evaluation:\nPulmonary/Respiratory Medicine consultation if symptoms continue.\n\nReferring Doctor: Dr. Meera Sharma' },
+];
+
+async function loadDemoDocuments(){
+  events = events.filter(e => !String(e.id).startsWith('demo-'));
+  DEMO_DOCS.forEach((d, i)=>{
+    events.push({
+      id: 'demo-'+i,
+      patientId: user.id,
+      uploadedAt: new Date().toISOString(),
+      sourceIsText: true,
+      sourceDataUrl: null,
+      ...d
+    });
+  });
+  await saveEvents(user.id, events);
+  showView('timeline');
+}
+
+/* ---------------- upload + extraction ---------------- */
+/* =========================================================================
+   OFFLINE UPLOAD + SIMULATED ANALYSIS
+   No network calls happen anywhere below. A file the user picks is only
+   ever read locally (FileReader) so it can be previewed via "View source" —
+   its bytes never leave the browser. The structured medical result is
+   always one of a handful of predefined/mock profiles chosen locally in
+   JavaScript, animated behind a fake multi-stage progress sequence so the
+   demo *looks* like a live AI pipeline without calling one.
+   ========================================================================= */
+
+function fileToText(file){
+  return new Promise((res, rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result);
+    r.onerror = ()=> rej(new Error('read failed'));
+    r.readAsText(file);
+  });
+}
+function fileToDataUrl(file){
+  return new Promise((res, rej)=>{
+    const r = new FileReader();
+    r.onload = ()=> res(r.result);
+    r.onerror = ()=> rej(new Error('read failed'));
+    r.readAsDataURL(file);
+  });
+}
+function delay(ms){ return new Promise(res=> setTimeout(res, ms)); }
+
+function formatBytes(bytes){
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+}
+function fileKind(file){
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const map = {pdf:'PDF document', doc:'Word document', docx:'Word document', txt:'Text file', jpg:'JPEG image', jpeg:'JPEG image', png:'PNG image', webp:'WEBP image'};
+  return map[ext] || (file.type || 'Unknown file type');
+}
+function fileMeta(file){
+  return { name:file.name, kind:fileKind(file), size:formatBytes(file.size), ext:(file.name.split('.').pop()||'').toLowerCase() };
+}
+
+/* ---------------- staging (choose file → review → Analyze) ---------------- */
+function stageFiles(fileList){
+  Array.from(fileList).forEach(f=> stagedFiles.push(f));
+  renderStaged();
+}
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropzone').style.borderColor = '';
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+    stageFiles(e.dataTransfer.files);
+  }
+}
+function removeStaged(i){
+  stagedFiles.splice(i,1);
+  renderStaged();
+}
+function renderStaged(){
+  const box = document.getElementById('staged');
+  const btn = document.getElementById('analyzeBtn');
+  if(!stagedFiles.length){ box.innerHTML=''; btn.style.display='none'; return; }
+  box.innerHTML = stagedFiles.map((f,i)=>{
+    const m = fileMeta(f);
+    return `
+      <div class="staged-item">
+        <div class="row1">
+          <span class="fname">📄 ${m.name}</span>
+          <button class="remove" onclick="removeStaged(${i})">Remove</button>
+        </div>
+        <div class="fmeta">${m.kind} · ${m.size} · Ready to analyze</div>
+      </div>`;
+  }).join('');
+  btn.style.display = 'inline-block';
+  btn.textContent = stagedFiles.length>1 ? `Analyze ${stagedFiles.length} Documents` : 'Analyze Document';
+}
+
+/* ---------------- simulated analysis pipeline ---------------- */
+const STAGES = ['Uploading', 'Reading Document', 'Extracting Medical Information', 'Building Patient Timeline', 'Analysis Complete'];
+
+async function analyzeStagedFiles(){
+  const files = stagedFiles.slice();
+  stagedFiles = [];
+  renderStaged();
+  document.getElementById('analyzeBtn').style.display='none';
+  let summary = null;
+  for(const file of files){
+    summary = await simulateAnalysis(file);
+  }
+  if(summary) showResultModal(summary);
+}
+
+async function simulateAnalysis(file){
+  const rowId = 'q'+Date.now()+Math.random().toString(36).slice(2,7);
+  const queue = document.getElementById('queue');
+  const m = fileMeta(file);
+  const row = document.createElement('div');
+  row.className = 'proc-item';
+  row.id = rowId;
+  row.innerHTML = `
+    <div class="prow">
+      <span class="fname">📄 ${m.name}</span>
+      <span class="fmeta">${m.kind} · ${m.size}</span>
+    </div>
+    <div class="proc-bar-track"><div class="proc-bar-fill" id="${rowId}-bar"></div></div>
+    <div class="proc-stage" id="${rowId}-stage">Uploading…</div>`;
+  queue.prepend(row);
+
+  const bar = document.getElementById(rowId+'-bar');
+  const stageLabel = document.getElementById(rowId+'-stage');
+  for(let i=0;i<STAGES.length;i++){
+    stageLabel.innerHTML = `<strong>${STAGES[i]}</strong>${i<STAGES.length-1?'…':''}`;
+    bar.style.width = Math.round(((i+1)/STAGES.length)*100) + '%';
+    await delay(480 + Math.random()*420);
+  }
+  row.outerHTML = `<div class="queue-item"><span class="name">📄 ${m.name}</span><span class="status-pill done">Added to timeline</span></div>`;
+
+  // Read the actual uploaded file locally so "View source" can show the
+  // real thing the user picked — this never touches the network.
+  let sourceDataUrl = null, sourceText = null, sourceIsText = false;
+  try{
+    if(m.ext === 'txt' || file.type === 'text/plain'){
+      sourceText = await fileToText(file);
+      sourceIsText = true;
+    } else if(m.ext === 'pdf' || m.ext === 'jpg' || m.ext === 'jpeg' || m.ext === 'png' || m.ext === 'webp' || (file.type||'').startsWith('image/') || file.type==='application/pdf'){
+      sourceDataUrl = await fileToDataUrl(file);
+    }
+    // .doc/.docx have no reliable in-browser preview without extra libraries,
+    // so for this offline demo they're accepted and analyzed, but the
+    // source viewer will just show the file's name/type/size.
+  }catch(e){ /* ignore read errors — the mock result still proceeds */ }
+
+  const profile = pickMockProfile(file.name + file.size);
+  const newEvents = profile.timeline.map((ev, idx)=>{
+    const isLast = idx === profile.timeline.length - 1;
+    return {
+      id: 'm'+Date.now()+idx+Math.random().toString(36).slice(2,5),
+      patientId: user.id,
+      uploadedAt: new Date().toISOString(),
+      sourceFileName: isLast ? file.name : `${file.name} — prior record (simulated)`,
+      sourceFileMeta: isLast ? `${m.kind} · ${m.size}` : null,
+      sourceDataUrl: isLast ? sourceDataUrl : null,
+      sourceIsText: isLast ? sourceIsText : true,
+      sourceText: isLast ? (sourceText || (sourceDataUrl ? null : `[${m.kind}, ${m.size} — offline demo: binary preview not rendered for this file type. This event's structured fields above are a simulated result.]`)) : ev.sourceText,
+      ...ev
+    };
+  });
+  events.push(...newEvents);
+  await saveEvents(user.id, events);
+  renderPatientTimeline();
+
+  return { ...profile.summary, sourceFileName: file.name, sourceFileMeta: `${m.kind} · ${m.size}` };
+}
+
+function hashStr(s){
+  let h = 0;
+  for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+function pickMockProfile(seed){
+  return MOCK_PROFILES[hashStr(String(seed)) % MOCK_PROFILES.length];
+}
+
+/* ---------------- mock profile library ----------------
+   Three predefined, fully local "analysis results". Which one is used for
+   a given upload is picked deterministically from the file's name+size, so
+   the same file always demos the same result. Nothing here is derived from
+   the file's actual content — this is a hackathon prototype, not a real
+   clinical extraction system. */
+const MOCK_PROFILES = [
+  {
+    summary:{
+      patientName:'Ananya Rao', patientId:'PT-88213', age:'34', gender:'Female',
+      diagnosis:'Type 2 Diabetes Mellitus', symptoms:'Increased thirst, fatigue, frequent urination',
+      medications:'Metformin 500 mg — twice daily', allergies:'Penicillin',
+      labResults:'HbA1c 7.8% (high) · Fasting glucose 148 mg/dL (high)',
+      doctorDept:'Dr. Meera Sharma — Endocrinology', visitDate:'2026-01-15', followUpDate:'2026-04-15'
+    },
+    timeline:[
+      {docType:'Clinical Note', eventDate:'2024-02-10', provider:'Dr. Meera Sharma', title:'Initial Consultation', summary:'Presented with increased thirst, fatigue and frequent urination; metabolic workup ordered.', diagnoses:[], medications:[], labResults:[], followUp:'Fasting blood test ordered', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Ananya Rao (PT-88213)\nDate: 10/02/2024\n\nChief complaint: increased thirst, fatigue, frequent urination for 2 weeks.\nPlan: Order fasting glucose and HbA1c.\nDoctor: Dr. Meera Sharma'},
+      {docType:'Lab Report', eventDate:'2024-02-18', provider:'Demo Diagnostics Centre', title:'Blood Test', summary:'Fasting glucose and HbA1c both elevated, consistent with a new diabetes diagnosis.', diagnoses:[], medications:[], labResults:[{name:'Fasting Glucose', value:'148', unit:'mg/dL', flag:'high'},{name:'HbA1c', value:'7.8', unit:'%', flag:'high'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Ananya Rao (PT-88213)\nDate: 18/02/2024\n\nFasting Glucose: 148 mg/dL (High)\nHbA1c: 7.8% (High)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2024-02-25', provider:'Dr. Meera Sharma', title:'Diagnosis', summary:'Diagnosed with Type 2 Diabetes Mellitus based on lab results and symptoms; treatment plan discussed.', diagnoses:['Type 2 Diabetes Mellitus'], medications:[], labResults:[], followUp:'Start medication and dietary counseling', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Ananya Rao (PT-88213)\nDate: 25/02/2024\n\nAssessment: Type 2 Diabetes Mellitus, newly diagnosed.\nPlan: Begin Metformin, refer to dietary counseling.\nDoctor: Dr. Meera Sharma'},
+      {docType:'Prescription', eventDate:'2024-03-01', provider:'Dr. Meera Sharma', title:'Medication Started', summary:'Metformin started to manage newly diagnosed Type 2 diabetes.', diagnoses:['Type 2 Diabetes Mellitus'], medications:[{name:'Metformin', dosage:'500 mg', frequency:'Twice daily with meals'}], labResults:[], followUp:'Recheck HbA1c in 6 months', confidence:'high', sourceText:'PRESCRIPTION\nPatient: Ananya Rao (PT-88213)\nDate: 01/03/2024\n\nMetformin 500 mg — twice daily with meals.\nDoctor: Dr. Meera Sharma'},
+      {docType:'Clinical Note', eventDate:'2025-03-10', provider:'Dr. Meera Sharma', title:'Follow-up Visit', summary:'Routine follow-up; blood sugar control improved on current medication, no new symptoms.', diagnoses:['Type 2 Diabetes Mellitus'], medications:[{name:'Metformin', dosage:'500 mg', frequency:'Twice daily'}], labResults:[], followUp:'Continue current regimen, recheck labs', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Ananya Rao (PT-88213)\nDate: 10/03/2025\n\nProgress: blood sugar control improved. Continue current regimen.\nDoctor: Dr. Meera Sharma'},
+      {docType:'Lab Report', eventDate:'2025-09-05', provider:'Demo Diagnostics Centre', title:'Lab Test', summary:'HbA1c recheck shows improved but still elevated control.', diagnoses:[], medications:[], labResults:[{name:'HbA1c', value:'7.1', unit:'%', flag:'high'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Ananya Rao (PT-88213)\nDate: 05/09/2025\n\nHbA1c: 7.1% (High, improved from prior)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2026-01-15', provider:'Dr. Meera Sharma — Endocrinology', title:'Current Visit', summary:'Most recent visit — the document you just uploaded was processed for this event.', diagnoses:['Type 2 Diabetes Mellitus'], medications:[{name:'Metformin', dosage:'500 mg', frequency:'Twice daily'}], labResults:[], followUp:'Return 2026-04-15', confidence:'medium'}
+    ]
+  },
+  {
+    summary:{
+      patientName:'Rohan Verma', patientId:'PT-55021', age:'45', gender:'Male',
+      diagnosis:'Essential Hypertension', symptoms:'Headache, occasional dizziness',
+      medications:'Amlodipine 5 mg — once daily', allergies:'None known',
+      labResults:'Blood Pressure 148/94 mmHg (high) · Lipid panel borderline',
+      doctorDept:'Dr. Karan Mehta — Cardiology', visitDate:'2026-02-02', followUpDate:'2026-05-02'
+    },
+    timeline:[
+      {docType:'Clinical Note', eventDate:'2024-04-03', provider:'Dr. Karan Mehta', title:'Initial Consultation', summary:'Presented with recurring headaches and dizziness; blood pressure elevated on exam.', diagnoses:[], medications:[], labResults:[], followUp:'Baseline bloods and BP monitoring advised', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Rohan Verma (PT-55021)\nDate: 03/04/2024\n\nComplaint: headaches, dizziness. BP 152/96 in clinic.\nDoctor: Dr. Karan Mehta'},
+      {docType:'Lab Report', eventDate:'2024-04-12', provider:'Demo Diagnostics Centre', title:'Blood Test', summary:'Lipid panel came back borderline; kidney function within normal range.', diagnoses:[], medications:[], labResults:[{name:'LDL Cholesterol', value:'142', unit:'mg/dL', flag:'high'},{name:'Creatinine', value:'0.9', unit:'mg/dL', flag:'normal'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Rohan Verma (PT-55021)\nDate: 12/04/2024\n\nLDL Cholesterol: 142 mg/dL (High)\nCreatinine: 0.9 mg/dL (Normal)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2024-04-20', provider:'Dr. Karan Mehta', title:'Diagnosis', summary:'Diagnosed with essential hypertension; lifestyle changes and medication discussed.', diagnoses:['Essential Hypertension'], medications:[], labResults:[], followUp:'Start antihypertensive medication', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Rohan Verma (PT-55021)\nDate: 20/04/2024\n\nAssessment: Essential Hypertension.\nPlan: Begin Amlodipine, low-sodium diet advised.\nDoctor: Dr. Karan Mehta'},
+      {docType:'Prescription', eventDate:'2024-04-25', provider:'Dr. Karan Mehta', title:'Medication Started', summary:'Amlodipine started to manage newly diagnosed hypertension.', diagnoses:['Essential Hypertension'], medications:[{name:'Amlodipine', dosage:'5 mg', frequency:'Once daily'}], labResults:[], followUp:'Recheck BP in 3 months', confidence:'high', sourceText:'PRESCRIPTION\nPatient: Rohan Verma (PT-55021)\nDate: 25/04/2024\n\nAmlodipine 5 mg — once daily.\nDoctor: Dr. Karan Mehta'},
+      {docType:'Clinical Note', eventDate:'2025-04-30', provider:'Dr. Karan Mehta', title:'Follow-up Visit', summary:'Blood pressure trending down on current medication; well tolerated, no side effects.', diagnoses:['Essential Hypertension'], medications:[{name:'Amlodipine', dosage:'5 mg', frequency:'Once daily'}], labResults:[], followUp:'Continue current regimen', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Rohan Verma (PT-55021)\nDate: 30/04/2025\n\nBP 138/88, trending down. Continue current regimen.\nDoctor: Dr. Karan Mehta'},
+      {docType:'Lab Report', eventDate:'2025-10-14', provider:'Demo Diagnostics Centre', title:'Lab Test', summary:'Lipid panel recheck still borderline; diet and exercise counseling reinforced.', diagnoses:[], medications:[], labResults:[{name:'LDL Cholesterol', value:'128', unit:'mg/dL', flag:'high'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Rohan Verma (PT-55021)\nDate: 14/10/2025\n\nLDL Cholesterol: 128 mg/dL (High, improved)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2026-02-02', provider:'Dr. Karan Mehta — Cardiology', title:'Current Visit', summary:'Most recent visit — the document you just uploaded was processed for this event.', diagnoses:['Essential Hypertension'], medications:[{name:'Amlodipine', dosage:'5 mg', frequency:'Once daily'}], labResults:[{name:'Blood Pressure', value:'148/94', unit:'mmHg', flag:'high'}], followUp:'Return 2026-05-02', confidence:'medium'}
+    ]
+  },
+  {
+    summary:{
+      patientName:'Priya Nair', patientId:'PT-77364', age:'29', gender:'Female',
+      diagnosis:'Iron-deficiency Anemia', symptoms:'Fatigue, pallor, mild shortness of breath',
+      medications:'Ferrous Sulfate 325 mg — once daily', allergies:'Sulfa drugs',
+      labResults:'Hemoglobin 9.8 g/dL (low) · Ferritin 8 ng/mL (low)',
+      doctorDept:'Dr. Sana Iyer — Internal Medicine', visitDate:'2026-03-08', followUpDate:'2026-06-08'
+    },
+    timeline:[
+      {docType:'Clinical Note', eventDate:'2024-06-05', provider:'Dr. Sana Iyer', title:'Initial Consultation', summary:'Presented with fatigue, pallor and mild breathlessness on exertion.', diagnoses:[], medications:[], labResults:[], followUp:'CBC and iron studies ordered', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Priya Nair (PT-77364)\nDate: 05/06/2024\n\nComplaint: fatigue, pallor, mild breathlessness.\nDoctor: Dr. Sana Iyer'},
+      {docType:'Lab Report', eventDate:'2024-06-14', provider:'Demo Diagnostics Centre', title:'Blood Test', summary:'Hemoglobin and ferritin both low, consistent with iron-deficiency anemia.', diagnoses:[], medications:[], labResults:[{name:'Hemoglobin', value:'9.8', unit:'g/dL', flag:'low'},{name:'Ferritin', value:'8', unit:'ng/mL', flag:'low'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Priya Nair (PT-77364)\nDate: 14/06/2024\n\nHemoglobin: 9.8 g/dL (Low)\nFerritin: 8 ng/mL (Low)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2024-06-20', provider:'Dr. Sana Iyer', title:'Diagnosis', summary:'Diagnosed with iron-deficiency anemia; oral iron supplementation planned.', diagnoses:['Iron-deficiency Anemia'], medications:[], labResults:[], followUp:'Start iron supplementation', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Priya Nair (PT-77364)\nDate: 20/06/2024\n\nAssessment: Iron-deficiency Anemia.\nPlan: Begin Ferrous Sulfate, dietary iron intake advised.\nDoctor: Dr. Sana Iyer'},
+      {docType:'Prescription', eventDate:'2024-06-24', provider:'Dr. Sana Iyer', title:'Medication Started', summary:'Ferrous Sulfate started to correct iron-deficiency anemia.', diagnoses:['Iron-deficiency Anemia'], medications:[{name:'Ferrous Sulfate', dosage:'325 mg', frequency:'Once daily with vitamin C'}], labResults:[], followUp:'Recheck hemoglobin in 3 months', confidence:'high', sourceText:'PRESCRIPTION\nPatient: Priya Nair (PT-77364)\nDate: 24/06/2024\n\nFerrous Sulfate 325 mg — once daily with vitamin C.\nDoctor: Dr. Sana Iyer'},
+      {docType:'Clinical Note', eventDate:'2025-06-28', provider:'Dr. Sana Iyer', title:'Follow-up Visit', summary:'Energy levels improved; mild fatigue persists, supplementation continued.', diagnoses:['Iron-deficiency Anemia'], medications:[{name:'Ferrous Sulfate', dosage:'325 mg', frequency:'Once daily'}], labResults:[], followUp:'Continue supplementation', confidence:'high', sourceText:'CLINICAL NOTE\nPatient: Priya Nair (PT-77364)\nDate: 28/06/2025\n\nEnergy improved, mild fatigue persists. Continue supplementation.\nDoctor: Dr. Sana Iyer'},
+      {docType:'Lab Report', eventDate:'2025-12-02', provider:'Demo Diagnostics Centre', title:'Lab Test', summary:'Hemoglobin recheck shows improvement, though still slightly below normal range.', diagnoses:[], medications:[], labResults:[{name:'Hemoglobin', value:'11.4', unit:'g/dL', flag:'low'}], followUp:null, confidence:'high', sourceText:'LAB REPORT\nPatient: Priya Nair (PT-77364)\nDate: 02/12/2025\n\nHemoglobin: 11.4 g/dL (Low, improved)\nLab: Demo Diagnostics Centre'},
+      {docType:'Clinical Note', eventDate:'2026-03-08', provider:'Dr. Sana Iyer — Internal Medicine', title:'Current Visit', summary:'Most recent visit — the document you just uploaded was processed for this event.', diagnoses:['Iron-deficiency Anemia'], medications:[{name:'Ferrous Sulfate', dosage:'325 mg', frequency:'Once daily'}], labResults:[], followUp:'Return 2026-06-08', confidence:'medium'}
+    ]
+  }
+];
+
+/* ---------------- analysis result modal ---------------- */
+function showResultModal(s){
+  document.getElementById('resultBody').innerHTML = `
+    <div class="field-note" style="margin:0 0 12px">Analyzed file: <strong>${s.sourceFileName}</strong>${s.sourceFileMeta ? ' — '+s.sourceFileMeta : ''}. This is a locally generated demo result — no document content was sent anywhere, and no real clinical AI produced it.</div>
+    <div class="panel" style="margin-bottom:14px">
+      <ul class="result-grid">
+        <li><strong>Patient Name</strong>${s.patientName}</li>
+        <li><strong>Patient ID</strong>${s.patientId}</li>
+        <li><strong>Age</strong>${s.age}</li>
+        <li><strong>Gender</strong>${s.gender}</li>
+        <li><strong>Diagnosis</strong>${s.diagnosis}</li>
+        <li><strong>Symptoms</strong>${s.symptoms}</li>
+        <li><strong>Medications</strong>${s.medications}</li>
+        <li><strong>Allergies</strong>${s.allergies}</li>
+        <li><strong>Lab Results</strong>${s.labResults}</li>
+        <li><strong>Doctor / Department</strong>${s.doctorDept}</li>
+        <li><strong>Visit Date</strong>${s.visitDate}</li>
+        <li><strong>Follow-up Date</strong>${s.followUpDate}</li>
+      </ul>
+    </div>
+    <button class="primary-btn" style="width:auto" onclick="closeResultModal(); showView('timeline')">View full patient timeline →</button>`;
+  document.getElementById('resultModalBg').classList.add('show');
+}
+function closeResultModal(){ document.getElementById('resultModalBg').classList.remove('show'); }
+
+/* ---------------- timeline rendering ---------------- */
+function flagClass(flag){
+  if(!flag) return '';
+  const f = flag.toLowerCase();
+  if(f==='high') return 'flag-high';
+  if(f==='critical') return 'flag-critical';
+  if(f==='low') return 'flag-low';
+  return '';
+}
+
+function eventCardHTML(evt, readOnly){
+  const date = evt.eventDate || '(date unclear)';
+  const chips = [];
+  (evt.medications||[]).forEach(m=> chips.push(`<span class="chip">${m.name}${m.dosage? ' · '+m.dosage:''}</span>`));
+  (evt.diagnoses||[]).forEach(d=> chips.push(`<span class="chip">${d}</span>`));
+  (evt.labResults||[]).forEach(l=> chips.push(`<span class="chip ${flagClass(l.flag)}">${l.name}: ${l.value}${l.unit?(' '+l.unit):''}</span>`));
+  return `
+    <div class="event">
+      <div class="event-card">
+        <div class="event-top">
+          <span class="event-date">${date}</span>
+          <span class="badge">${evt.docType || 'Other'}</span>
+        </div>
+        <div class="event-title">${evt.title || 'Untitled event'}</div>
+        <div class="event-summary">${evt.summary || ''}</div>
+        ${chips.length? `<div class="chips">${chips.join('')}</div>` : ''}
+        <div class="event-foot">
+          <span>${evt.provider ? 'Provider: '+evt.provider : ''}${evt.followUp? ' · Follow-up: '+evt.followUp : ''}</span>
+          <button class="link-btn" onclick="openSource('${evt.id}', ${readOnly?'true':'false'})">View source</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function sortEvents(list, order){
+  return [...list].sort((a,b)=>{
+    const da = a.eventDate || '0000-00-00';
+    const db = b.eventDate || '0000-00-00';
+    return order==='asc' ? da.localeCompare(db) : db.localeCompare(da);
+  });
+}
+
+function renderPatientTimeline(){
+  const order = document.getElementById('sortOrder') ? document.getElementById('sortOrder').value : 'desc';
+  const list = sortEvents(events, order);
+  document.getElementById('eventCount').textContent = events.length + (events.length===1?' event':' events');
+  const container = document.getElementById('timelineList');
+  container.innerHTML = list.length ? list.map(e=>eventCardHTML(e,false)).join('') : '<div class="empty">No events yet — upload a document to get started.</div>';
+  renderSummary(list);
+}
+
+function renderSummary(list){
+  const meds = new Map();
+  const diags = new Set();
+  const flags = [];
+  list.forEach(e=>{
+    (e.medications||[]).forEach(m=> meds.set(m.name, m));
+    (e.diagnoses||[]).forEach(d=> diags.add(d));
+    (e.labResults||[]).forEach(l=>{
+      if(l.flag && l.flag.toLowerCase()!=='normal') flags.push(`${l.name}: ${l.value}${l.unit?(' '+l.unit):''} (${l.flag}) — ${e.eventDate||'undated'}`);
+    });
+  });
+  document.getElementById('medList').innerHTML = meds.size ? [...meds.values()].map(m=>`<li>${m.name}${m.dosage? ' — '+m.dosage:''}${m.frequency? ', '+m.frequency:''}</li>`).join('') : '<li class="empty" style="padding:0">None recorded yet</li>';
+  document.getElementById('diagList').innerHTML = diags.size ? [...diags].map(d=>`<li>${d}</li>`).join('') : '<li class="empty" style="padding:0">None recorded yet</li>';
+  document.getElementById('flagList').innerHTML = flags.length ? flags.map(f=>`<li>${f}</li>`).join('') : '<li class="empty" style="padding:0">None recorded yet</li>';
+}
+
+/* ---------------- source modal ---------------- */
+function openSource(eventId, readOnly){
+  const list = readOnly ? events : events; // events holds whichever record is currently loaded
+  const evt = list.find(e=>e.id===eventId);
+  if(!evt) return;
+  document.getElementById('modalTitle').textContent = evt.sourceFileName || 'Source document';
+  let body = `<div class="field-note">${evt.sourceFileMeta ? evt.sourceFileMeta+' — ' : ''}Extraction confidence: ${evt.confidence || 'unspecified'} — this is a simulated offline result; always verify against the original before clinical use.</div>`;
+  if(evt.sourceIsText || (!evt.sourceDataUrl && evt.sourceText)){
+    const safe = (evt.sourceText || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    body += `<pre>${safe || 'No text captured for this document.'}</pre>`;
+  } else if((evt.sourceDataUrl||'').startsWith('data:application/pdf')){
+    body += `<iframe src="${evt.sourceDataUrl}" height="420"></iframe>`;
+  } else if(evt.sourceDataUrl){
+    body += `<img src="${evt.sourceDataUrl}">`;
+  } else {
+    body += `<div class="field-note" style="margin-top:10px">No in-browser preview available for this file type in the offline demo.</div>`;
+  }
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+/* ---------------- patient sharing / consent ---------------- */
+async function refreshConsentUI(){
+  const on = await loadConsent(user.id);
+  document.getElementById('consentSwitch').classList.toggle('on', on);
+}
+async function toggleConsent(){
+  const el = document.getElementById('consentSwitch');
+  const newVal = !el.classList.contains('on');
+  await saveConsent(user.id, newVal);
+  el.classList.toggle('on', newVal);
+}
+async function refreshAuditUI(){
+  const log = await loadAudit(user.id);
+  const box = document.getElementById('auditLog');
+  box.innerHTML = log.length ? log.map(a=>`<div class="audit-item">${a.doctorName} (${a.doctorId}) viewed your timeline — ${new Date(a.at).toLocaleString()}</div>`).join('') : '<div class="empty" style="padding:0">No one has viewed your record yet.</div>';
+}
+
+/* ---------------- doctor lookup ---------------- */
+async function doctorSearch(){
+  const pid = document.getElementById('searchPid').value.trim();
+  const resultBox = document.getElementById('doctorResult');
+  if(!pid){ return; }
+  const consent = await loadConsent(pid);
+  if(!consent){
+    resultBox.innerHTML = `<div class="denied">Access blocked — patient <strong>${pid}</strong> has not enabled clinician sharing, or this ID doesn't exist yet.</div>`;
+    return;
+  }
+  viewingPatientId = pid;
+  events = await loadEvents(pid);
+  await appendAudit(pid, {doctorId:user.id, doctorName:user.name, at:new Date().toISOString()});
+
+  const list = sortEvents(events, 'desc');
+  const meds = new Map(), diags = new Set(), flags=[];
+  list.forEach(e=>{
+    (e.medications||[]).forEach(m=> meds.set(m.name,m));
+    (e.diagnoses||[]).forEach(d=> diags.add(d));
+    (e.labResults||[]).forEach(l=>{ if(l.flag && l.flag.toLowerCase()!=='normal') flags.push(`${l.name}: ${l.value}${l.unit?(' '+l.unit):''} (${l.flag})`); });
+  });
+
+  resultBox.innerHTML = `
+    <div class="page-head" style="margin-bottom:14px"><h2 style="font-size:18px">Timeline for ${pid}</h2><p>Read-only. This view was just logged to the patient's access log.</p></div>
+    <div class="layout">
+      <div class="timeline">${list.length? list.map(e=>eventCardHTML(e,true)).join('') : '<div class="empty">No events on record.</div>'}</div>
+      <div>
+        <div class="panel"><h3>Active medications</h3><ul>${meds.size? [...meds.values()].map(m=>`<li>${m.name}${m.dosage?' — '+m.dosage:''}</li>`).join('') : '<li class="empty" style="padding:0">None</li>'}</ul></div>
+        <div class="panel"><h3>Diagnoses</h3><ul>${diags.size? [...diags].map(d=>`<li>${d}</li>`).join('') : '<li class="empty" style="padding:0">None</li>'}</ul></div>
+        <div class="panel"><h3>Flagged labs</h3><ul>${flags.length? flags.map(f=>`<li>${f}</li>`).join('') : '<li class="empty" style="padding:0">None</li>'}</ul></div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
